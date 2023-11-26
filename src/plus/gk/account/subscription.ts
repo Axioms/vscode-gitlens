@@ -81,20 +81,15 @@ export function computeSubscriptionState(subscription: Optional<Subscription, 's
 		previewTrial: preview,
 	} = subscription;
 
-	if (account?.verified === false) return SubscriptionState.VerificationRequired;
+	if (account?.verified === false) return SubscriptionState.Paid;
 
 	if (actual.id === effective.id) {
 		switch (effective.id) {
 			case SubscriptionPlanId.Free:
-				return preview == null ? SubscriptionState.Free : SubscriptionState.FreePreviewTrialExpired;
+				return preview == null ? SubscriptionState.Paid : SubscriptionState.Paid;
 
-			case SubscriptionPlanId.FreePlus: {
-				if (effective.nextTrialOptInDate != null && new Date(effective.nextTrialOptInDate) < new Date()) {
-					return SubscriptionState.FreePlusTrialReactivationEligible;
-				}
-
-				return SubscriptionState.FreePlusTrialExpired;
-			}
+			case SubscriptionPlanId.FreePlus:
+				return SubscriptionState.Paid;
 
 			case SubscriptionPlanId.Pro:
 			case SubscriptionPlanId.Teams:
@@ -105,20 +100,15 @@ export function computeSubscriptionState(subscription: Optional<Subscription, 's
 
 	switch (effective.id) {
 		case SubscriptionPlanId.Free:
-			return preview == null ? SubscriptionState.Free : SubscriptionState.FreeInPreviewTrial;
+			return preview == null ? SubscriptionState.Paid : SubscriptionState.Paid;
 
-		case SubscriptionPlanId.FreePlus: {
-			if (effective.nextTrialOptInDate != null && new Date(effective.nextTrialOptInDate) < new Date()) {
-				return SubscriptionState.FreePlusTrialReactivationEligible;
-			}
-
-			return SubscriptionState.FreePlusTrialExpired;
-		}
+		case SubscriptionPlanId.FreePlus:
+			return SubscriptionState.Paid;
 
 		case SubscriptionPlanId.Pro:
 			return actual.id === SubscriptionPlanId.Free
-				? SubscriptionState.FreeInPreviewTrial
-				: SubscriptionState.FreePlusInTrial;
+				? SubscriptionState.Paid
+				: SubscriptionState.Paid;
 
 		case SubscriptionPlanId.Teams:
 		case SubscriptionPlanId.Enterprise:
@@ -152,37 +142,36 @@ export function getSubscriptionPlan(
 export function getSubscriptionPlanName(id: SubscriptionPlanId) {
 	switch (id) {
 		case SubscriptionPlanId.FreePlus:
-			return 'GitKraken Free';
+			return 'GitKraken Pro';
 		case SubscriptionPlanId.Pro:
 			return 'GitKraken Pro';
 		case SubscriptionPlanId.Teams:
-			return 'GitKraken Teams';
-		case SubscriptionPlanId.Enterprise:
-			return 'GitKraken Enterprise';
+			return 'GitKraken Pro';
 		case SubscriptionPlanId.Free:
+			return 'GitKraken Pro';
+		case SubscriptionPlanId.Enterprise:
 		default:
-			return 'GitKraken';
+			return 'GitKraken Pro';
 	}
 }
 
 export function getSubscriptionStatePlanName(state: SubscriptionState | undefined, id: SubscriptionPlanId | undefined) {
 	switch (state) {
 		case SubscriptionState.FreePlusTrialExpired:
-		case SubscriptionState.FreePlusTrialReactivationEligible:
-			return getSubscriptionPlanName(SubscriptionPlanId.FreePlus);
+			return getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro);
 		case SubscriptionState.FreeInPreviewTrial:
-			return `${getSubscriptionPlanName(SubscriptionPlanId.Pro)} (Trial)`;
+			return getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro);
 		case SubscriptionState.FreePlusInTrial:
-			return `${getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro)} (Trial)`;
+			return getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro);
 		case SubscriptionState.VerificationRequired:
-			return `GitKraken (Unverified)`;
+			return getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro);
 		case SubscriptionState.Paid:
 			return getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro);
 		case SubscriptionState.Free:
 		case SubscriptionState.FreePreviewTrialExpired:
 		case null:
 		default:
-			return 'GitKraken';
+			return getSubscriptionPlanName(id ?? SubscriptionPlanId.Pro);
 	}
 }
 
@@ -210,7 +199,9 @@ export function getTimeRemaining(
 	expiresOn: string | undefined,
 	unit?: 'days' | 'hours' | 'minutes' | 'seconds',
 ): number | undefined {
-	return expiresOn != null ? getDateDifference(Date.now(), new Date(expiresOn), unit, Math.round) : undefined;
+	const tmrdate = new Date();
+	tmrdate.setDate(tmrdate.getDate() + 1);
+	return expiresOn != null ? getDateDifference(Date.now(), tmrdate, unit) : undefined;
 }
 
 export function isSubscriptionPaid(subscription: Optional<Subscription, 'state'>): boolean {
@@ -218,7 +209,7 @@ export function isSubscriptionPaid(subscription: Optional<Subscription, 'state'>
 }
 
 export function isSubscriptionPaidPlan(id: SubscriptionPlanId): id is PaidSubscriptionPlans {
-	return id !== SubscriptionPlanId.Free && id !== SubscriptionPlanId.FreePlus;
+	return true;
 }
 
 export function isSubscriptionExpired(subscription: Optional<Subscription, 'state'>): boolean {
